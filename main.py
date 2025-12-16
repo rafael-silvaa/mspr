@@ -1,6 +1,7 @@
 import sys
 import json
 import os
+from modules import diagnostic, backup, audit
 
 def load_config():
     # logique pour verif var env
@@ -20,12 +21,14 @@ def main_menu():
         choice = input("Votre choix: ")
 
         if choice == '1':
-            print("Lancement du diagnostic... (À implementer)")
-            # diagnostic.run(config)
+            print("Lancement du diagnostic...")
+            diagnostic.run_diagnostic(config)
+            input("\nAppuyez sur Entrée pour revenir au menu:")
         elif choice == '2':
-            print("Lancement de la sauvegarde... (À implementer)")
+            backup.run_backup_menu(config) 
         elif choice == '3':
-            print("Lancement de l'audit... (À implementer)")
+            print("Lancement de l'audit...")
+            audit.scan_network(config)
         elif choice == 'q':
             print("Fermeture")
             sys.exit(0)
