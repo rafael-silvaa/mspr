@@ -1,0 +1,14 @@
+{
+  "general": {
+    "log_level": "INFO"
+  },
+  "database": {
+    "host": "192.168.10.21", 
+    "user": "admin",
+    "password": "Admin123",
+    "db_name": "wms_prod"
+  },
+  "network": {
+    "target_subnet": "192.168.10.0/24"
+  }
+}
