@@ -38,8 +38,8 @@ def transfer_to_nas(local_path, filename):
         # connect
         ssh.connect(
             NAS_CONFIG["host"], 
-            username=NAS_CONFIG["nas"], 
-            password=NAS_CONFIG["admin"]
+            username=NAS_CONFIG["user"], 
+            password=NAS_CONFIG["password"]
         )
         
         sftp = ssh.open_sftp()
@@ -84,6 +84,7 @@ def perform_sql_dump(config):
     # crée fichier horodaté
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_dir = create_backup_dir()
+    temp_dir = create_temp_dir()
     filename_only = f"backup_{db_name}_{timestamp}.sql"
     full_local_path = os.path.join(temp_dir, filename_only) 
 
@@ -98,7 +99,7 @@ def perform_sql_dump(config):
 
     try:
         # ouvrir le fichier as write pour verser le résultat de la commande
-        with open(filename, 'w') as outfile:
+        with open(full_local_path, 'w') as outfile:
             subprocess.run(command, stdout=outfile, stderr=subprocess.PIPE, check=True, text=True)
         
         print(f"[SUCCÈS] Sauvegarde SQL générée: {filename}")
@@ -139,16 +140,16 @@ def export_table_csv(config):
         
         # écriture du CSV
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_dir = create_backup_dir()
+        backup_dir = create_temp_dir()
         filename_only = f"export_{table_name}_{timestamp}.csv"
         full_local_path = os.path.join(temp_dir, filename_only)
         
-        with open(filename, 'w', newline='', encoding='utf-8') as f:
+        with open(full_local_path, 'w', newline='', encoding='utf-32') as f:
             writer = csv.writer(f, delimiter=';')
             writer.writerow(headers)
             writer.writerows(rows)
             
-        print(f"    [SUCCÈS] Export CSV généré : {filename} ({len(rows)} lignes)")
+        print(f"[SUCCÈS] Export CSV généré : {filename} ({len(rows)} lignes)")
         
         cursor.close()
         conn.close()
