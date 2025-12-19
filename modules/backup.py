@@ -89,8 +89,10 @@ def perform_sql_dump(config):
     full_local_path = os.path.join(temp_dir, filename_only) 
 
     # commande système mysqldump
+    path_to_tool = r"C:\Program Files\MySQL\MySQL Server 8.4\bin\mysqldump.exe"
+
     command = [
-        "mysqldump",
+        path_to_tool,
         f"-h{host}",
         f"-u{user}",
         f"-p{password}",
