@@ -7,7 +7,9 @@ import paramiko
 import json
 from datetime import datetime
 
+BASE_DIR = os.path.dirname(__file__)
 CONFIG_FILE = os.path.join(os.path.dirname(__file__), "configs", "diagnostic.json")
+LOGS_DIR = os.path.join(BASE_DIR, "logs")
 
 def load_inventory():
     """"load config depuis json"""
@@ -21,6 +23,33 @@ def load_inventory():
     except json.JSONDecodeError as e:
         print(f"[ERREUR] Le fichier JSON est mal formaté : {e}")
         return {}
+
+def save_report_json(machine_name, data):
+    """exporter le dic de données -> JSON"""
+    if not os.path.exists(LOGS_DIR):
+        try:
+            os.makedirs(LOGS_DIR)
+        except OSError as e:
+            print(f"[ERREUR] Impossible de créer le dossier logs : {e}")
+            return
+
+    safe_name = "".join([c if c.isalnum() else "_" for c in machine_name])
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"diag_{safe_name}_{timestamp}.json"
+    filepath = os.path.join(LOGS_DIR, filename)
+
+    full_report = {
+        "machine": machine_name,
+        "scan_date": datetime.now().isoformat(),
+        "scan_result": data
+    }
+
+    try:
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(full_report, f, indent=4, ensure_ascii=False)
+        print(f"\n[SUCCÈS] Rapport exporté ici : {filepath}")
+    except Exception as e:
+        print(f"\n[ERREUR] Échec de l'export JSON : {e}")
 
 def get_remote_linux_health(ip, user, password):
     """connecte SSH + commandes Linux pour récup l'état"""
@@ -126,18 +155,21 @@ def run_diagnostic():
             if target["type"] == "local":
                 # analyse locale (psutil)
                 data = get_local_health()
-                display_report(target["name"], data)
                 
             elif target["type"] == "linux_ssh":
                 # analyse distante Linux (SSH)
                 data = get_remote_linux_health(target["ip"], target["user"], target["password"])
-                display_report(target["name"], data)
                 
             elif target["type"] == "windows_remote":
                 # analyse distante Windows (ports seulement, sauf si SSH installé)
                 ports = target.get("ports", [135, 445]) # ports by default
                 data = check_simple_ports(target["ip"], ports)
+
                 display_report(target["name"], data)
+
+                save = input("Voulez-vous exporter ce rapport en JSON? (y/N) : ")
+                if save.lower() == 'y':
+                    save_report_json(target["name"], data)
         else:
             print("Choix invalide.")
 
