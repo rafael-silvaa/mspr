@@ -96,7 +96,7 @@ def display_report(machine_name, data):
         print(f" {key:<15} : {value}")
     print("="*40 + "\n")
 
-def run_menu():
+def run_diagnostic():
     inventory = load_inventory()
 
     if not inventory:
@@ -143,6 +143,6 @@ def run_menu():
 
 if __name__ == "__main__":
     try:
-        run_menu()
+        run_diagnostic()
     except KeyboardInterrupt:
         print("\nArrêt forcé.")
