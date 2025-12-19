@@ -22,7 +22,7 @@ def main_menu():
 
         if choice == '1':
             print("Lancement du diagnostic...")
-            diagnostic.run_diagnostic(config)
+            diagnostic.run_diagnostic()
             input("\nAppuyez sur Entrée pour revenir au menu:")
         elif choice == '2':
             backup.run_backup_menu(config) 
