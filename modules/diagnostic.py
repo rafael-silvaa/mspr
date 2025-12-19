@@ -6,6 +6,7 @@ import socket
 import paramiko
 import json
 from datetime import datetime
+from .utils import *
 
 BASE_DIR = os.path.dirname(__file__)
 CONFIG_FILE = os.path.join(os.path.dirname(__file__), "configs", "diagnostic.json")
@@ -133,6 +134,8 @@ def run_diagnostic():
             return
 
     while True:
+        clear_screen()
+
         print("\n--- MENU DIAGNOSTIC RÉSEAU ---")
         print("Sélectionnez la machine à scanner :")
         
@@ -170,6 +173,8 @@ def run_diagnostic():
                 save = input("Voulez-vous exporter ce rapport en JSON? (y/N) : ")
                 if save.lower() == 'y':
                     save_report_json(target["name"], data)
+
+                wait_for_user()
         else:
             print("Choix invalide.")
 
