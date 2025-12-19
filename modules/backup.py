@@ -9,7 +9,7 @@ NAS_CONFIG = {
     "host": "192.168.1.132",
     "user": "nas",
     "password": "admin",
-    "remote_dir": "/srv/nyl_data/"
+    "remote_dir": "/srv/ntl_data/"
 }
 
 def create_temp_dir():
@@ -114,7 +114,7 @@ def perform_sql_dump(config):
         print(f"Assurez-vous que 'mysqldump' est installé sur cette machine.")
         return False
     except FileNotFoundError:
-        print("    [ERREUR] Commande 'mysqldump' introuvable. Est-elle dans le PATH ?")
+        print("[ERREUR] Commande 'mysqldump' introuvable. Est-elle dans le PATH ?")
         return False
 
 def export_table_csv(config):
