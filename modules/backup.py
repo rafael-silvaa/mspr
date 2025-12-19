@@ -104,7 +104,7 @@ def perform_sql_dump(config):
         with open(full_local_path, 'w') as outfile:
             subprocess.run(command, stdout=outfile, stderr=subprocess.PIPE, check=True, text=True)
         
-        print(f"[SUCCÈS] Sauvegarde SQL générée: {filename}")
+        print(f"[SUCCÈS] Sauvegarde SQL générée: {full_local_path}")
 
         transfer_to_nas(full_local_path, filename_only)
         return True
