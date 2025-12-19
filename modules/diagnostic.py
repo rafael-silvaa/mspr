@@ -2,76 +2,146 @@ import psutil
 import platform
 import time
 import socket
+import paramiko
 import json
 from datetime import datetime
 
-def get_system_health():
-    """Récupère les informations de santé de la machine locale (Windows ou Linux)."""
+CONFIG_FILE = os.path.join(os.path.dirname(__file__), "configs", "diagnostic.json")
 
-    # infos OS & uptime
-    boot_time_timestamp = psutil.boot_time()
-    bt = datetime.fromtimestamp(boot_time_timestamp)
-    uptime = datetime.now() - bt
-
-    system_info = {
-        "os_type": platform.system(),
-        "os_release": platform.release(),
-        "hostname": platform.node(),
-        "uptime_str": str(uptime).split('.')[0], # enleve les microsecondes
-        "cpu_usage_percent": psutil.cpu_percent(interval=1),
-        "ram_usage_percent": psutil.virtual_memory().percent,
-        "disk_usage_percent": psutil.disk_usage('/').percent
-    }
-    return system_info
-
-def check_remote_port(ip, port, service_name):
-    """Teste si un port est ouvert sur une machine distante (Test basique de service)."""
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(2) # timeout court pour ne pas bloquer
-    result = sock.connect_ex((ip, port))
-    sock.close()
-
-    status = "OK" if result == 0 else "ERREUR/INACCESSIBLE"
-    return {"service": service_name, "target": ip, "port": port, "status": status}
-
-def run_diagnostic(config):
-    """Fonction principale du module."""
-    print("\n--- DIAGNOSTIC SYSTÈME ---")
+def load_inventory():
+    """"load config depuis json"""
+    if not os.path.exists(CONFIG_FILE):
+        print(f"[ERREUR] Le fichier de configuration est introuvable : {CONFIG_FILE}")
+        return {}
     
-    # A. santé locale
-    print(f"[*] Analyse de la machine locale...")
-    local_health = get_system_health()
-    
-    # affichage humain
-    print(f"    OS: {local_health['os_type']} {local_health['os_release']}")
-    print(f"    Uptime: {local_health['uptime_str']}")
-    print(f"    CPU: {local_health['cpu_usage_percent']}% | RAM: {local_health['ram_usage_percent']}% | Disque: {local_health['disk_usage_percent']}%")
+    try:
+        with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"[ERREUR] Le fichier JSON est mal formaté : {e}")
+        return {}
 
-    # B. verification des services critiques (AD, DNS, MySQL)
-    # IPs recuperes depuis la config (annexe C)
-    print(f"\n[*] Vérification des services critiques distants...")
+def get_remote_linux_health(ip, user, password):
+    """connecte SSH + commandes Linux pour récup l'état"""
+    print(f"[*] Connexion SSH vers {ip}...")
+    info = {}
     
-    targets = [
-        ("192.168.10.10", 53, "DNS (DC01)"),      # Port DNS
-        ("192.168.10.10", 389, "AD (DC01)"),      # Port LDAP
-        ("192.168.10.21", 3306, "MySQL (WMS-DB)") # Port MySQL
-    ]
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     
-    services_status = []
-    for ip, port, name in targets:
-        res = check_remote_port(ip, port, name)
-        services_status.append(res)
-        print(f"    {name} sur {ip}:{port} -> {res['status']}")
+    try:
+        client.connect(ip, username=user, password=password, timeout=5)
+        
+        # 1. récup OS
+        stdin, stdout, stderr = client.exec_command("cat /etc/os-release | grep PRETTY_NAME")
+        os_name = stdout.read().decode().strip().replace('PRETTY_NAME=', '').replace('"', '')
+        info['OS'] = os_name if os_name else "Linux inconnu"
 
-    # C. generer du rapport json
-    full_report = {
-        "timestamp": datetime.now().isoformat(),
-        "local_health": local_health,
-        "remote_services": services_status
-    }
+        # 2. récup uptime
+        stdin, stdout, stderr = client.exec_command("uptime -p")
+        info['Uptime'] = stdout.read().decode().strip()
 
-    # sauvegarder ou afficher json
-    # sauvegarder dans un dossier de logs (?)
-    json_output = json.dumps(full_report, indent=4)
-    # print("\n[DEBUG] Sortie JSON générée (interne)")
-    return full_report
+        # 3. récup CPU load
+        stdin, stdout, stderr = client.exec_command("cat /proc/loadavg")
+        load = stdout.read().decode().split()[0]
+        info['CPU Load'] = f"{load} (Load Avg)"
+
+        # 4. récup RAM (libre/total)
+        cmd_ram = "free -m | awk 'NR==2{printf \"%.2f\", $3*100/$2 }'"
+        stdin, stdout, stderr = client.exec_command(cmd_ram)
+        info['RAM'] = f"{stdout.read().decode().strip()}% utilisée"
+
+        # 5. récup disque
+        cmd_disk = "df -h / | awk 'NR==2 {print $5}'"
+        stdin, stdout, stderr = client.exec_command(cmd_disk)
+        info['Disque'] = stdout.read().decode().strip()
+
+        client.close()
+        return info
+
+    except Exception as e:
+        return {"ERREUR": f"Connexion impossible ou échec commandes: {e}"}
+
+def check_simple_ports(ip, ports):
+    """pour machines Windows sans SSH, vérifier juste les ports"""
+    print(f"[*] Scan réseau vers {ip} (Mode limité)...")
+    info = {"OS": "Windows (Probable)", "Type": "Scan de Ports (Pas d'accès WMI/SSH)"}
+    
+    for port in ports:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        result = sock.connect_ex((ip, port))
+        status = "OUVERT" if result == 0 else "FERMÉ"
+        info[f"Port {port}"] = status
+        sock.close()
+    
+    # try ping basique 
+    try:
+        param = '-n' if platform.system().lower() == 'windows' else '-c'
+        command = ['ping', param, '1', ip]
+        response = psutil.subprocess.call(command, stdout=psutil.subprocess.DEVNULL, stderr=psutil.subprocess.DEVNULL)
+        info["Ping"] = "OK" if response == 0 else "TimeOut"
+    except Exception:
+            info["Ping"] = "Erreur commande ping"
+    
+    return info
+
+def display_report(machine_name, data):
+    """Afficher résultats"""
+    print("\n" + "="*40)
+    print(f" RAPPORT : {machine_name}")
+    print("="*40)
+    for key, value in data.items():
+        print(f" {key:<15} : {value}")
+    print("="*40 + "\n")
+
+def run_menu():
+    inventory = load_inventory()
+
+    if not inventory:
+            print("Aucune configuration chargée. Vérifiez configs/diagnostic.json")
+            return
+
+    while True:
+        print("\n--- MENU DIAGNOSTIC RÉSEAU ---")
+        print("Sélectionnez la machine à scanner :")
+        
+        keys = sorted(inventory.keys())
+        for key in keys:
+            val = inventory[key]
+            print(f"{key}. {val['name']} ({val['ip']})")
+        
+        print("q. Quitter")
+        
+        choice = input("\nVotre choix : ")
+        
+        if choice == 'q':
+            print("Au revoir.")
+            break
+            
+        if choice in inventory:
+            target = inventory[choice]
+            
+            if target["type"] == "local":
+                # analyse locale (psutil)
+                data = get_local_health()
+                display_report(target["name"], data)
+                
+            elif target["type"] == "linux_ssh":
+                # analyse distante Linux (SSH)
+                data = get_remote_linux_health(target["ip"], target["user"], target["password"])
+                display_report(target["name"], data)
+                
+            elif target["type"] == "windows_remote":
+                # analyse distante Windows (ports seulement, sauf si SSH installé)
+                ports = target.get("ports", [135, 445]) # ports by default
+                data = check_simple_ports(target["ip"], ports)
+                display_report(target["name"], data)
+        else:
+            print("Choix invalide.")
+
+if __name__ == "__main__":
+    try:
+        run_menu()
+    except KeyboardInterrupt:
+        print("\nArrêt forcé.")
