@@ -102,7 +102,7 @@ def scan_network(config):
     if audit_results:
         filename = f"audit_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
         with open(filename, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=["ip", "os", "status", "eol_date"])
+            writer = csv.DictWriter(f, fieldnames=["ip", "os", "status", "eol_date"], delimiter=';')
             writer.writeheader()
             writer.writerows(audit_results)
         print(f"\n[SUCCÈS] Rapport CSV généré : {filename}")

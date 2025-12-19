@@ -81,7 +81,7 @@ def export_table_csv(config):
         filename = os.path.join(backup_dir, f"export_{table_name}_{timestamp}.csv")
         
         with open(filename, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
+            writer = csv.writer(f, delimiter=';')
             writer.writerow(headers)
             writer.writerows(rows)
             
