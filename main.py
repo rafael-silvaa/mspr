@@ -2,7 +2,7 @@ import sys
 import json
 import os
 from modules import diagnostic, backup, audit
-from utils import *
+from modules.utils import *
 
 def load_config():
     with open('config.json', 'r') as f:
