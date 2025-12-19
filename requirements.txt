@@ -1,4 +1,4 @@
 psutil
 mysql-connector-python
-mysql-client
+paramiko
 requests
