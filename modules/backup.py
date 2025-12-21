@@ -3,6 +3,7 @@ import subprocess
 import mysql.connector
 import csv
 import paramiko
+import json
 from datetime import datetime
 from .utils import *
 
@@ -166,7 +167,11 @@ def export_table_csv(config):
 def run_backup_menu():
     """Sous-menu pour le module de sauvegarde."""
     config = load_config()
-    if not config: return
+    if not config:
+        print("\n[ERREUR CRITIQUE] Impossible de charger la configuration backup.")
+        print("Vérifiez le fichier modules/configs/backup.json")
+        wait_for_user() 
+        return
 
     while True:
         clear_screen()
