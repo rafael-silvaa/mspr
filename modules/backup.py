@@ -85,7 +85,7 @@ def perform_sql_dump(config):
     # crée fichier horodaté
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     temp_dir = create_temp_dir()
-    filename = f"backup_{db_name}_{timestamp}.sql"
+    filename = f"backup_{db}_{timestamp}.sql"
     local_path = os.path.join(temp_dir, filename) 
 
     command = [
