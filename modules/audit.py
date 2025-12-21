@@ -3,6 +3,21 @@ import subprocess
 import csv
 import requests
 from datetime import datetime
+from .utils import *
+
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_FILE = os.path.join(CURRENT_DIR, "configs", "audit.json")
+
+def load_config():
+    if not os.path.exists(CONFIG_FILE):
+        print(f"[ERREUR] Config introuvable : {CONFIG_FILE}")
+        return None
+    try:
+        with open(CONFIG_FILE, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[ERREUR] Lecture JSON : {e}")
+        return None
 
 # mapping API endoflife.date
 API_MAPPING = {
@@ -74,37 +89,92 @@ def ping_host(ip):
 
 def scan_network(config):
     print("\n--- AUDIT D'OBSOLESCENCE (Source: endoflife.date) ---")
-    
-    subnet = config.get("network", {}).get("target_subnet", "192.168.10.0/24")
-    base_ip = ".".join(subnet.split('.')[:3])
-    
-    print(f"[*] Scan réseau : {subnet}")
-    audit_results = []
 
-    # scan rapide pour démo
-    for i in range(1, 60): 
-        ip = f"{base_ip}.{i}"
+    config = load_config()
+    if not config:
+        print("Erreur de configuration audit.")
+        return
+
+    base_ip = config['network_range']
+    start = config['ip_start']
+    end = config['ip_end']
+    ports = config['ports_to_scan']
+    timeout = config['timeout']
+
+    print(f"\n[*] Audit du réseau {base_ip}{start}-{end}...")
+    print(f"[*] Ports ciblés : {ports}\n")
+
+    found_hosts = 0
+
+    # boucle sur les IPs
+    for i in range(start, end + 1):
+        ip = f"{base_ip}{i}"
         
-        if ping_host(ip):
-            detected_os = KNOWN_HOSTS.get(ip, "Inconnu")
-            
-            # message d'attente car l'API peut prendre quelques ms
-            print(f"    [+] Machine trouvée : {ip} ({detected_os})... Vérification API...")
-            
-            status, date_eol = get_eol_status(detected_os)
-            
-            result_entry = {"ip": ip, "os": detected_os, "status": status, "eol_date": date_eol}
-            audit_results.append(result_entry)
-            
-            print(f"        -> Résultat : {status} (Fin de vie : {date_eol})")
+        open_ports = []
+        
+        for port in ports:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(timeout)
+            result = sock.connect_ex((ip, port))
+            if result == 0:
+                open_ports.append(port)
+            sock.close()
 
-    # generer CSV
-    if audit_results:
-        filename = f"audit_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-        with open(filename, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=["ip", "os", "status", "eol_date"], delimiter=';')
-            writer.writeheader()
-            writer.writerows(audit_results)
-        print(f"\n[SUCCÈS] Rapport CSV généré : {filename}")
+        if open_ports:
+            found_hosts += 1
+            print(f"   [!] Hôte DÉCOUVERT : {ip} | Ports ouverts: {open_ports}")
+            # ici - logique obsolète ?
+            if 23 in open_ports: # telnet
+                print(f"       /!\\ ALERTE : Telnet (Port 23) détecté ! Protocole obsolète.")
+            if 21 in open_ports: # FTP
+                print(f"       /!\\ ALERTE : FTP (Port 21) détecté ! Non sécurisé.")
+
+    if found_hosts == 0:
+        print("\nAucune machine trouvée avec ces ports ouverts.")
     else:
-        print("\n[INFO] Aucune machine active détectée.")
+        print(f"\nAudit terminé. {found_hosts} machines détectées.")
+
+def scan_menu():
+    while True:
+        clear_screen()
+        print("\n--- MODULE AUDIT & OBSOLESCENCE ---")
+        print("1. Lancer le scan réseau")
+        print("q. Retour")
+        
+        c = input("Choix : ")
+        if c == '1':
+            scan_network()
+            wait_for_user()
+        elif c == 'q':
+            break
+    
+    # print(f"[*] Scan réseau : {subnet}")
+    # audit_results = []
+
+    # # scan rapide pour démo
+    # for i in range(1, 60): 
+    #     ip = f"{base_ip}.{i}"
+        
+    #     if ping_host(ip):
+    #         detected_os = KNOWN_HOSTS.get(ip, "Inconnu")
+            
+    #         # message d'attente car l'API peut prendre quelques ms
+    #         print(f"    [+] Machine trouvée : {ip} ({detected_os})... Vérification API...")
+            
+    #         status, date_eol = get_eol_status(detected_os)
+            
+    #         result_entry = {"ip": ip, "os": detected_os, "status": status, "eol_date": date_eol}
+    #         audit_results.append(result_entry)
+            
+    #         print(f"        -> Résultat : {status} (Fin de vie : {date_eol})")
+
+    # # generer CSV
+    # if audit_results:
+    #     filename = f"audit_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    #     with open(filename, 'w', newline='', encoding='utf-8') as f:
+    #         writer = csv.DictWriter(f, fieldnames=["ip", "os", "status", "eol_date"], delimiter=';')
+    #         writer.writeheader()
+    #         writer.writerows(audit_results)
+    #     print(f"\n[SUCCÈS] Rapport CSV généré : {filename}")
+    # else:
+    #     print("\n[INFO] Aucune machine active détectée.")
