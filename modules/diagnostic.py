@@ -149,7 +149,6 @@ def run_diagnostic():
         choice = input("\nVotre choix : ")
         
         if choice == 'q':
-            print("Au revoir.")
             break
             
         if choice in inventory:
