@@ -4,13 +4,21 @@ import mysql.connector
 import csv
 import paramiko
 from datetime import datetime
+from .utils import *
 
-NAS_CONFIG = {
-    "host": "192.168.1.132",
-    "user": "nas",
-    "password": "admin",
-    "remote_dir": "/srv/ntl_data/"
-}
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_FILE = os.path.join(CURRENT_DIR, "configs", "backup.json")
+
+def load_config():
+    if not os.path.exists(CONFIG_FILE):
+        print(f"[ERREUR] Config introuvable : {CONFIG_FILE}")
+        return None
+    try:
+        with open(CONFIG_FILE, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[ERREUR] Lecture JSON : {e}")
+        return None
 
 def create_temp_dir():
     """crée un dossier avant """
@@ -18,13 +26,6 @@ def create_temp_dir():
     if not os.path.exists(temp_dir):
         os.makedirs(temp_dir)
     return temp_dir
-
-def create_backup_dir():
-    """crée dossier backups si pas existant"""
-    backup_dir = "backups"
-    if not os.path.exists(backup_dir):
-        os.makedirs(backup_dir)
-    return backup_dir
 
 def transfer_to_nas(local_path, filename):
     """envoie fichier -> NAS + supprime copie locale si succès"""
@@ -54,16 +55,17 @@ def transfer_to_nas(local_path, filename):
 
         # envoi fichier
         remote_path = os.path.join(NAS_CONFIG["remote_dir"], filename)
-        sftp.put(local_path, remote_path)
         
+        sftp.put(local_path, remote_path)
         sftp.close()
         ssh.close()
         
         print(f"[SUCCÈS] Fichier transféré sur le NAS : {remote_path}")
         
         # supp fichier local
-        os.remove(local_path)
-        print("[INFO] Copie locale supprimée.")
+        if os.path.exists(local_path):
+            os.remove(local_path)
+            print("[INFO] Copie locale supprimée.")
         return True
 
     except Exception as e:
@@ -73,40 +75,37 @@ def transfer_to_nas(local_path, filename):
 
 def perform_sql_dump(config):
     """dump complet de la base via mysqldump"""
-    print("\n[*] Démarrage de la sauvegarde SQL complète...")
+    db = config['database']
+    tools = config['tools']
+    nas = config['nas']
     
-    db_conf = config.get("database", {})
-    host = db_conf.get("host", "localhost")
-    user = db_conf.get("user", "root")
-    password = db_conf.get("password", "")
-    db_name = db_conf.get("db_name", "wms_prod")
+    print("\n[*] Démarrage de la sauvegarde SQL complète...")
     
     # crée fichier horodaté
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_dir = create_backup_dir()
     temp_dir = create_temp_dir()
-    filename_only = f"backup_{db_name}_{timestamp}.sql"
-    full_local_path = os.path.join(temp_dir, filename_only) 
-
-    # commande système mysqldump
-    path_to_tool = r"C:\Program Files\MySQL\MySQL Server 8.4\bin\mysqldump.exe"
+    filename = f"backup_{db_name}_{timestamp}.sql"
+    local_path = os.path.join(temp_dir, filename) 
 
     command = [
-        path_to_tool,
-        f"-h{host}",
-        f"-u{user}",
-        f"-p{password}",
-        db_name
+        tools['mysqldump_path'],
+        f"-h{db['host']}",
+        f"-u{db['user']}",
+        f"-p{db['password']}",
+        db_name['db_name']
     ]
+
+    # remove arg -p si pas de mdp
+    if not db['password']:
+        command.pop(3)
 
     try:
         # ouvrir le fichier as write pour verser le résultat de la commande
-        with open(full_local_path, 'w') as outfile:
+        with open(local_path, 'w') as outfile:
             subprocess.run(command, stdout=outfile, stderr=subprocess.PIPE, check=True, text=True)
         
-        print(f"[SUCCÈS] Sauvegarde SQL générée: {full_local_path}")
-
-        transfer_to_nas(full_local_path, filename_only)
+        print(f"[SUCCÈS] Sauvegarde SQL générée: {local_path}")
+        transfer_to_nas(local_path, filename)
         return True
     
     except subprocess.CalledProcessError as e:
@@ -119,17 +118,18 @@ def perform_sql_dump(config):
 
 def export_table_csv(config):
     """exporte table spécifique en csv"""
+    db = config['database']
+    nas = config['nas']
+
     table_name = input("Quelle table voulez-vous exporter en CSV ? (users) : ")
     print(f"\n[*] Export de la table '{table_name}' en CSV...")
-
-    db_conf = config.get("database", {})
     
     try:
         conn = mysql.connector.connect(
-            host=db_conf.get("host"),
-            user=db_conf.get("user"),
-            password=db_conf.get("password"),
-            database=db_conf.get("db_name")
+            host=db['host'],
+            user=db['user'],
+            password=db["password"],
+            database=db["db_name"]
         )
         cursor = conn.cursor()
         
@@ -142,11 +142,11 @@ def export_table_csv(config):
         
         # écriture du CSV
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_dir = create_temp_dir()
-        filename_only = f"export_{table_name}_{timestamp}.csv"
-        full_local_path = os.path.join(temp_dir, filename_only)
+        temp_dir = create_temp_dir()
+        filename = f"export_{table_name}_{timestamp}.csv"
+        local_path = os.path.join(temp_dir, filename)
         
-        with open(full_local_path, 'w', newline='', encoding='utf-32') as f:
+        with open(local_path, 'w', newline='', encoding='utf-8-sig') as f:
             writer = csv.writer(f, delimiter=';')
             writer.writerow(headers)
             writer.writerows(rows)
@@ -156,16 +156,21 @@ def export_table_csv(config):
         cursor.close()
         conn.close()
 
-        transfer_to_nas(full_local_path, filename_only)
+        transfer_to_nas(local_path, filename, nas)
         return True
 
     except mysql.connector.Error as err:
         print(f"[ERREUR MySQL] {err}")
         return False
 
-def run_backup_menu(config):
+def run_backup_menu():
     """Sous-menu pour le module de sauvegarde."""
+    config = load_config()
+    if not config: return
+
     while True:
+        clear_screen()
+
         print("\n--- MODULE SAUVEGARDE WMS ---")
         print("1. Sauvegarde complète (SQL Dump)")
         print("2. Export d'une table (CSV)")
@@ -175,8 +180,10 @@ def run_backup_menu(config):
         
         if choice == '1':
             perform_sql_dump(config)
+            wait_for_user()
         elif choice == '2':
             export_table_csv(config)
+            wait_for_user()
         elif choice == 'q':
             break
         else:
