@@ -134,7 +134,7 @@ def run_diagnostic():
             return
 
     while True:
-        clear_screen()
+        # clear_screen()
 
         print("\n--- MENU DIAGNOSTIC RÉSEAU ---")
         print("Sélectionnez la machine à scanner :")
