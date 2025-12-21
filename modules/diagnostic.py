@@ -57,10 +57,10 @@ def get_remote_linux_health(ip, user, password):
     print(f"[*] Connexion SSH vers {ip}...")
     info = {}
     
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    
     try:
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    
         client.connect(ip, username=user, password=password, timeout=5)
         
         # 1. récup OS
