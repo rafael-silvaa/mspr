@@ -154,26 +154,36 @@ def run_diagnostic():
             
         if choice in inventory:
             target = inventory[choice]
-            
-            if target["type"] == "local":
-                # analyse locale (psutil)
-                data = get_local_health()
-                
-            elif target["type"] == "linux_ssh":
-                # analyse distante Linux (SSH)
-                data = get_remote_linux_health(target["ip"], target["user"], target["password"])
-                
-            elif target["type"] == "windows_remote":
-                # analyse distante Windows (ports seulement, sauf si SSH installé)
-                ports = target.get("ports", [135, 445]) # ports by default
-                data = check_simple_ports(target["ip"], ports)
+            data = {}
 
-                display_report(target["name"], data)
+            try:
+                print(f"\n[*] Lancement du scan sur {target['name']}...")
 
-                save = input("Voulez-vous exporter ce rapport en JSON? (y/N) : ")
-                if save.lower() == 'y':
-                    save_report_json(target["name"], data)
+                if target["type"] == "local":
+                    # analyse locale (psutil)
+                    data = get_local_health()
+                    
+                elif target["type"] == "linux_ssh":
+                    # analyse distante Linux (SSH)
+                    data = get_remote_linux_health(target["ip"], target["user"], target["password"])
+                    
+                elif target["type"] == "windows_remote":
+                    # analyse distante Windows (ports seulement, sauf si SSH installé)
+                    ports = target.get("ports", [135, 445]) # ports by default
+                    data = check_simple_ports(target["ip"], ports)
 
+                    display_report(target["name"], data)
+
+                    save = input("Voulez-vous exporter ce rapport en JSON? (y/N) : ")
+                    if save.lower() == 'y':
+                        save_report_json(target["name"], data)
+                    
+                    wait_for_user()
+                    
+            except Exception as e:
+                print(f"\n/!\ Une erreur est survenue pendant le scan :")
+                print(f"{e}")
+                print("Vérifiez vos IPs, mots de passe et connexions.")
                 wait_for_user()
         else:
             print("Choix invalide.")
