@@ -6,7 +6,7 @@ from modules.utils import *
 
 def main_menu():
     while True: 
-        # clear_screen()
+        clear_screen()
 
         print("\n" + "="*30)
         print("   NTL-SysToolBox - MENU")
