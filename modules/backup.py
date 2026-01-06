@@ -93,7 +93,7 @@ def perform_sql_dump(config):
         f"-h{db['host']}",
         f"-u{db['user']}",
         f"-p{db['password']}",
-        db_name['db_name']
+        db['db_name']
     ]
 
     # remove arg -p si pas de mdp
