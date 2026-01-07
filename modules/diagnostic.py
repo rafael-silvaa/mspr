@@ -230,6 +230,7 @@ def run_diagnostic():
                     save_report_json(target["name"], data)
                 
                 wait_for_user()
+                clear_screen()
                     
             except Exception as e:
                 print(f"\n/!\ Une erreur est survenue pendant le scan :")
