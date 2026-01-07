@@ -119,6 +119,10 @@ def check_simple_ports(ip, ports):
 
 def display_report(machine_name, data):
     """Afficher résultats"""
+    if not data:
+        print(f"\n[!] Aucun résultat ou erreur lors du scan de {machine_name}.")
+        return
+
     print("\n" + "="*40)
     print(f" RAPPORT : {machine_name}")
     print("="*40)
