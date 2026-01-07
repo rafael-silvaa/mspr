@@ -170,18 +170,6 @@ def display_report(machine_name, data):
             print(f" {key:<15} | {etat}")
     
     print("="*50 + "\n")
-# def display_report(machine_name, data):
-#     """Afficher résultats"""
-#     if not data:
-#         print(f"\n[!] Aucun résultat ou erreur lors du scan de {machine_name}.")
-#         return
-
-#     print("\n" + "="*40)
-#     print(f" RAPPORT : {machine_name}")
-#     print("="*40)
-#     for key, value in data.items():
-#         print(f" {key:<15} : {value}")
-#     print("="*40 + "\n")
 
 def run_diagnostic():
     inventory = load_inventory()
