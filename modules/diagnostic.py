@@ -95,25 +95,51 @@ def get_remote_linux_health(ip, user, password):
 
 def check_simple_ports(ip, ports):
     """pour machines Windows sans SSH, vérifier juste les ports"""
-    print(f"[*] Scan réseau vers {ip} (Mode limité)...")
-    info = {"OS": "Windows (Probable)", "Type": "Scan de Ports (Pas d'accès WMI/SSH)"}
+    print(f"[*] Démarrage du scan détaillé vers {ip}...")
     
-    for port in ports:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(1)
-        result = sock.connect_ex((ip, port))
-        status = "OUVERT" if result == 0 else "FERMÉ"
-        info[f"Port {port}"] = status
-        sock.close()
+    info = {
+        "OS": "Windows", 
+        "Type": "Scan de Ports"
+    }
     
-    # try ping basique 
+    print(f"    > Test du Ping...", end=' ', flush=True)
     try:
         param = '-n' if platform.system().lower() == 'windows' else '-c'
-        command = ['ping', param, '1', ip]
-        response = psutil.subprocess.call(command, stdout=psutil.subprocess.DEVNULL, stderr=psutil.subprocess.DEVNULL)
-        info["Ping"] = "OK" if response == 0 else "TimeOut"
-    except Exception:
-            info["Ping"] = "Erreur commande ping"
+        command = ['ping', param, '1', '-W', '1000', ip] # -W 1000 = Timeout 1s max
+        
+        response = psutil.subprocess.call(
+            command, 
+            stdout=psutil.subprocess.DEVNULL, 
+            stderr=psutil.subprocess.DEVNULL
+        )
+        
+        if response == 0:
+            print("OK")
+            info["Ping"] = "OK"
+        else:
+            print("Timeout")
+            info["Ping"] = "Timeout"
+    except Exception as e:
+        print(f"ERREUR ({e})")
+        info["Ping"] = "Erreur Commande"
+
+    # loop ports
+    for port in ports:
+        print(f"    > Test du port TCP/{port}...", end=' ', flush=True)
+        
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1.0) # 1 sec max / port
+        result = sock.connect_ex((ip, port))
+        
+        if result == 0:
+            status = "OUVERT"
+            print("Ouvert")
+        else:
+            status = "FERMÉ"
+            print("Fermé") 
+            
+        info[f"Port {port}"] = status
+        sock.close()
     
     return info
 
