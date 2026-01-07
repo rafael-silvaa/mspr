@@ -132,10 +132,10 @@ def check_simple_ports(ip, ports):
         result = sock.connect_ex((ip, port))
         
         if result == 0:
-            status = "OUVERT"
+            status = "Ouvert"
             print("Ouvert")
         else:
-            status = "FERMÉ"
+            status = "Fermé"
             print("Fermé") 
             
         info[f"Port {port}"] = status
