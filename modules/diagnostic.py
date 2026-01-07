@@ -134,8 +134,8 @@ def run_diagnostic():
     inventory = load_inventory()
 
     if not inventory:
-            print("Aucune configuration chargée. Vérifiez configs/diagnostic.json")
-            return
+        print("Aucune configuration chargée. Vérifiez configs/diagnostic.json")
+        return
 
     while True:
         # clear_screen()
@@ -157,19 +157,18 @@ def run_diagnostic():
             
         if choice in inventory:
             target = inventory[choice]
+            data = {}
             
             print(f"[*] Détection de l'OS de {target['ip']}...")
             detected_type = detect_os_type(target['ip'])
             
             current_type = target['type']
-            
             if target['type'] != 'local' and detected_type != 'unknown':
                 current_type = detected_type
                 print(f"    -> OS Détecté : {current_type}")
             
             # scan
             try:
-                data = {}
                 if current_type == "local":
                     # analyse locale (psutil)
                     data = get_local_health()
@@ -182,15 +181,14 @@ def run_diagnostic():
                 elif current_type == "windows_remote":
                     # win detected -> scan ports
                     data = check_simple_ports(target["ip"], [135, 445, 3389])
-                    
-                    save = input("Voulez-vous exporter ce rapport en JSON? (y/N) : ")
-                    if save.lower() == 'y':
-                        save_report_json(target["name"], data)
-                    
-                    wait_for_user()
+                
+                display_report(target["name"], data)
 
-                else:
-                    print(f"[?] Type inconnu ou machine injoignable.")
+                save = input("Voulez-vous exporter ce rapport en JSON? (y/N) : ")
+                if save.lower() == 'y':
+                    save_report_json(target["name"], data)
+                
+                wait_for_user()
                     
             except Exception as e:
                 print(f"\n/!\ Une erreur est survenue pendant le scan :")
