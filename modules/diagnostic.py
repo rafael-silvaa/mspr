@@ -153,31 +153,40 @@ def run_diagnostic():
             
         if choice in inventory:
             target = inventory[choice]
-            data = {}
-
+            
+            print(f"[*] Détection de l'OS de {target['ip']}...")
+            detected_type = detect_os_type(target['ip'])
+            
+            current_type = target['type']
+            
+            if target['type'] != 'local' and detected_type != 'unknown':
+                current_type = detected_type
+                print(f"    -> OS Détecté : {current_type}")
+            
+            # scan
             try:
-                print(f"\n[*] Lancement du scan sur {target['name']}...")
-
-                if target["type"] == "local":
+                data = {}
+                if current_type == "local":
                     # analyse locale (psutil)
                     data = get_local_health()
                     
-                elif target["type"] == "linux_ssh":
+                elif current_type == "linux_ssh":
                     # analyse distante Linux (SSH)
-                    data = get_remote_linux_health(target["ip"], target["user"], target["password"])
+                    # user/pass necessaire
+                    data = get_remote_linux_health(target["ip"], target.get("user"), target.get("password"))
                     
-                elif target["type"] == "windows_remote":
-                    # analyse distante Windows (ports seulement, sauf si SSH installé)
-                    ports = target.get("ports", [135, 445]) # ports by default
-                    data = check_simple_ports(target["ip"], ports)
-
-                    display_report(target["name"], data)
-
+                elif current_type == "windows_remote":
+                    # win detected -> scan ports
+                    data = check_simple_ports(target["ip"], [135, 445, 3389])
+                    
                     save = input("Voulez-vous exporter ce rapport en JSON? (y/N) : ")
                     if save.lower() == 'y':
                         save_report_json(target["name"], data)
                     
                     wait_for_user()
+
+                else:
+                    print(f"[?] Type inconnu ou machine injoignable.")
                     
             except Exception as e:
                 print(f"\n/!\ Une erreur est survenue pendant le scan :")
