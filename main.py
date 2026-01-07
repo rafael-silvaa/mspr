@@ -21,7 +21,6 @@ def main_menu():
         if choice == '1':
             clear_screen()
             
-            print("Lancement du diagnostic...")
             diagnostic.run_diagnostic()
             wait_for_user()
 
