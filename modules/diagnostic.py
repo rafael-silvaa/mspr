@@ -144,17 +144,44 @@ def check_simple_ports(ip, ports):
     return info
 
 def display_report(machine_name, data):
-    """Afficher résultats"""
-    if not data:
-        print(f"\n[!] Aucun résultat ou erreur lors du scan de {machine_name}.")
-        return
-
-    print("\n" + "="*40)
-    print(f" RAPPORT : {machine_name}")
-    print("="*40)
+    print("\n" + "="*50)
+    print(f" RAPPORT FINAL : {machine_name}")
+    print("="*50)
+    
+    ports_data = []
+    general_data = {}
+    
     for key, value in data.items():
+        if "Port" in key:
+            ports_data.append((key, value))
+        else:
+            general_data[key] = value
+
+    for key, value in general_data.items():
         print(f" {key:<15} : {value}")
-    print("="*40 + "\n")
+
+    print("-" * 50)
+    
+    if ports_data:
+        print(f" {'SERVICE/PORT':<15} | {'ÉTAT'}")
+        print(f" {'-'*15} | {'-'*10}")
+        for key, value in ports_data:
+            etat = value
+            print(f" {key:<15} | {etat}")
+    
+    print("="*50 + "\n")
+# def display_report(machine_name, data):
+#     """Afficher résultats"""
+#     if not data:
+#         print(f"\n[!] Aucun résultat ou erreur lors du scan de {machine_name}.")
+#         return
+
+#     print("\n" + "="*40)
+#     print(f" RAPPORT : {machine_name}")
+#     print("="*40)
+#     for key, value in data.items():
+#         print(f" {key:<15} : {value}")
+#     print("="*40 + "\n")
 
 def run_diagnostic():
     inventory = load_inventory()
