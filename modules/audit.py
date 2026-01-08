@@ -44,25 +44,24 @@ def load_config():
         print(f"[ERREUR] Lecture JSON : {e}")
         return None
 
-def fetch_eol_date_from_api(product, cycle):
-    url = f"https://endoflife.date/api/v1/{product}.json"
+def fetch_eol_date_from_api(product, version):
+    url = f"https://endoflife.date/api/v1/products/{product}"
 
     try:
         response = requests.get(url, timeout=2)
         if response.status_code == 200:
             data = response.json()
+
+            releases = data.get("result", {}).get("releases", [])
             # cherche cycle correspondant (ex: 20.04)
-            for entry in data:
-                if str(entry['cycle']) == str(cycle):
-                    eol_date = entry['eol']
+            for release in releases:
+                if str(release['name']) == str(version):
+                    eol_date = release.get('eolFrom')
                     
                     if isinstance(eol_date, str) and len(eol_date) == 10:
-                        dt_eol = datetime.strptime(eol_date, "%Y-%m-%d")
-                        if datetime.now() > dt_eol:
-                            return "Obsolète", eol_date
-                        else:
-                            return "Supporté", eol_date
-                    return "Supporté", str(eol_date)
+                        return eol_date
+                    
+                    return str(eol_date)
     except Exception:
         return None
     return "Erreur API", "N/A"
@@ -72,10 +71,10 @@ def get_eol_status(os_name):
     if os_name not in API_MAPPING:
         return "INCONNU (Pas de mapping API)", "N/A"
     
-    product_slug, cycle = API_MAPPING[os_name]
+    product_slug, version = API_MAPPING[os_name]
     
     # appel API
-    eol_date_str = fetch_eol_date_from_api(product_slug, cycle)
+    eol_date_str = fetch_eol_date_from_api(product_slug, version)
     
     # fallback si API échoue (mode hors ligne ou API down)
     if not eol_date_str:
@@ -87,11 +86,11 @@ def get_eol_status(os_name):
         today = datetime.now()
         
         if today > eol_date:
-            return "OBSOLÈTE (DANGER)", eol_date_str
+            return "Obsolète", eol_date_str
         else:
-            return "SUPPORTÉ", eol_date_str
+            return "Supporté", eol_date_str
     except ValueError:
-        return "ERREUR FORMAT DATE", eol_date_str
+        return "Date invalide", eol_date_str
 
 def scan_subnet_and_export(profile, ports_to_scan):
     """scan network, OS & EOL + CSV"""
