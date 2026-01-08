@@ -168,7 +168,7 @@ def scan_subnet_and_export(profile, ports_to_scan):
                     'IP': ip_str,
                     'Nom (DNS)': hostname,
                     'OS Détecté': os_detected,
-                    'Status Support (EOL)': status_eol,
+                    'Statut Support (EOL)': status_eol,
                     'Date Fin Support': date_eol,
                     'Ports Ouverts': str(open_ports)
                 })
