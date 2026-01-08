@@ -97,61 +97,61 @@ def get_eol_status(os_name):
     except ValueError:
         return "ERREUR FORMAT DATE", eol_date_str
 
-def ping_host(ip):
-    """Ping une IP (Cross-platform)."""
-    param = '-n' if platform.system().lower() == 'windows' else '-c'
-    command = ['ping', param, '1', ip]
-    try:
-        return subprocess.call(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0
-    except Exception:
-        return False
+# def ping_host(ip):
+#     """Ping une IP (Cross-platform)."""
+#     param = '-n' if platform.system().lower() == 'windows' else '-c'
+#     command = ['ping', param, '1', ip]
+#     try:
+#         return subprocess.call(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0
+#     except Exception:
+#         return False
 
-def scan_network(config):
-    print("\n--- AUDIT D'OBSOLESCENCE (Source: endoflife.date) ---")
+# def scan_network(config):
+#     print("\n--- AUDIT D'OBSOLESCENCE (Source: endoflife.date) ---")
 
-    config = load_config()
-    if not config:
-        print("Erreur de configuration audit.")
-        return
+#     config = load_config()
+#     if not config:
+#         print("Erreur de configuration audit.")
+#         return
 
-    base_ip = config['network_range']
-    start = config['ip_start']
-    end = config['ip_end']
-    ports = config['ports_to_scan']
-    timeout = config['timeout']
+#     base_ip = config['network_range']
+#     start = config['ip_start']
+#     end = config['ip_end']
+#     ports = config['ports_to_scan']
+#     timeout = config['timeout']
 
-    print(f"\n[*] Audit du réseau {base_ip}{start}-{end}...")
-    print(f"[*] Ports ciblés : {ports}\n")
+#     print(f"\n[*] Audit du réseau {base_ip}{start}-{end}...")
+#     print(f"[*] Ports ciblés : {ports}\n")
 
-    found_hosts = 0
+#     found_hosts = 0
 
-    # boucle sur les IPs
-    for i in range(start, end + 1):
-        ip = f"{base_ip}{i}"
+#     # boucle sur les IPs
+#     for i in range(start, end + 1):
+#         ip = f"{base_ip}{i}"
         
-        open_ports = []
+#         open_ports = []
         
-        for port in ports:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(timeout)
-            result = sock.connect_ex((ip, port))
-            if result == 0:
-                open_ports.append(port)
-            sock.close()
+#         for port in ports:
+#             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#             sock.settimeout(timeout)
+#             result = sock.connect_ex((ip, port))
+#             if result == 0:
+#                 open_ports.append(port)
+#             sock.close()
 
-        if open_ports:
-            found_hosts += 1
-            print(f"   [!] Hôte DÉCOUVERT : {ip} | Ports ouverts: {open_ports}")
-            # ici - logique obsolète ?
-            if 23 in open_ports: # telnet
-                print(f"       /!\\ ALERTE : Telnet (Port 23) détecté ! Protocole obsolète.")
-            if 21 in open_ports: # FTP
-                print(f"       /!\\ ALERTE : FTP (Port 21) détecté ! Non sécurisé.")
+#         if open_ports:
+#             found_hosts += 1
+#             print(f"   [!] Hôte DÉCOUVERT : {ip} | Ports ouverts: {open_ports}")
+#             # ici - logique obsolète ?
+#             if 23 in open_ports: # telnet
+#                 print(f"       /!\\ ALERTE : Telnet (Port 23) détecté ! Protocole obsolète.")
+#             if 21 in open_ports: # FTP
+#                 print(f"       /!\\ ALERTE : FTP (Port 21) détecté ! Non sécurisé.")
 
-    if found_hosts == 0:
-        print("\nAucune machine trouvée avec ces ports ouverts.")
-    else:
-        print(f"\nAudit terminé. {found_hosts} machines détectées.")
+#     if found_hosts == 0:
+#         print("\nAucune machine trouvée avec ces ports ouverts.")
+#     else:
+#         print(f"\nAudit terminé. {found_hosts} machines détectées.")
 
 def scan_menu():
     while True:
