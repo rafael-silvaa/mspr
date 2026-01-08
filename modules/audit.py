@@ -179,7 +179,7 @@ def scan_subnet_and_export(profile, ports_to_scan):
             fieldnames = ['IP', 'Nom (DNS)', 'OS Détecté', 'Statut Support (EOL)', 'Date Fin Support', 'Ports Ouverts']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter=';')
             writer.writeheader()
-            writer.writerow(results_to_write)
+            writer.writerows(results_to_write)
 
             print(f"\n\n[OK] Scan terminé. {len(results_to_write)} machines trouvées.")
             print(f"[FICHIER] Rapport généré : {filepath}")
