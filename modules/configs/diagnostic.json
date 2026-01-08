@@ -3,12 +3,13 @@
         "name": "Contrôleur de Domaine (AD/DNS)",
         "type": "windows_remote",
         "ip": "192.168.10.10",
-        "ports": [53, 389]
+        "user": "NTL\\SRVAD",
+        "password": "admin"
     },
     "2": {
         "name": "NAS (Stockage)",
         "type": "linux_ssh",
-        "ip": "192.168.1.132",
+        "ip": "192.168.10.22",
         "user": "nas",
         "password": "admin"
     },
