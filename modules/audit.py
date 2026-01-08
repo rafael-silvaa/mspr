@@ -151,7 +151,93 @@ def get_eol_status(os_name):
 #     if found_hosts == 0:
 #         print("\nAucune machine trouvée avec ces ports ouverts.")
 #     else:
-#         print(f"\nAudit terminé. {found_hosts} machines détectées.")
+#         print(f"\nAudit terminé. {found_hosts} machines détectées.")``
+
+def scan_subnet_and_export(profile, ports_to_scan):
+    """scan network, OS & EOL + CSV"""
+    
+    cidr = profile['cidr']
+    net_name = profile['network_name']
+    
+    print(f"\n[*] Démarrage de l'audit sur : {net_name} ({cidr})")
+    print(f"[*] Ports testés : {ports_to_scan}")
+    
+    # prep fichier CSV
+    if not os.path.exists(LOGS_DIR):
+        os.makedirs(LOGS_DIR)
+        
+    safe_name = "".join([c if c.isalnum() else "_" for c in net_name])
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"AUDIT_{safe_name}_{timestamp}.csv"
+    filepath = os.path.join(LOGS_DIR, filename)
+
+    try:
+        network = ipaddress.IPv4Network(cidr, strict=False)
+    except ValueError:
+        print("[!] CIDR invalide.")
+        return
+
+    try:
+        with open(filepath, 'w', newline='', encoding='utf-8-sig') as csvfile:
+            fieldnames = ['IP', 'Nom (DNS)', 'OS Détecté', 'Statut Support (EOL)', 'Date Fin Support', 'Ports Ouverts']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter=';')
+            writer.writeheader()
+
+            found_count = 0
+            
+            # loop all IPs
+            total_hosts = network.num_addresses - 2
+            print(f"[*] Analyse de {total_hosts} adresses IP... (Patientez)\n")
+
+            for ip in network.hosts():
+                ip_str = str(ip)
+                
+                # loading visual effect
+                print(f"    > Scan {ip_str:<15}", end='\r')
+
+                # test de vie
+                open_ports = []
+                is_alive = False
+                
+                for port in ports_to_scan:
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    sock.settimeout(0.1)
+                    res = sock.connect_ex((ip_str, port))
+                    sock.close()
+                    if res == 0:
+                        is_alive = True
+                        open_ports.append(port)
+
+                if is_alive:
+                    # reverse DNS for hostname
+                    try:
+                        hostname = socket.gethostbyaddr(ip_str)[0]
+                    except:
+                        hostname = "N/A"
+
+                    # OS
+                    os_detected = KNOWN_FINGERPRINTS.get(ip_str, "OS Inconnu")
+                    
+                    # EOL API
+                    status_eol, date_eol = get_eol_status(os_detected)
+
+                    print(f"    [+] TROUVÉ : {ip_str} ({hostname}) | {os_detected} | {status_eol}")
+
+                    writer.writerow({
+                        'IP': ip_str,
+                        'Nom (DNS)': hostname,
+                        'OS Détecté': os_detected,
+                        'Statut Support (EOL)': status_eol,
+                        'Date Fin Support': date_eol,
+                        'Ports Ouverts': str(open_ports)
+                    })
+                    found_count += 1
+
+            print(f"\n\n[OK] Scan terminé. {found_count} machines trouvées.")
+            print(f"[FICHIER] Rapport généré : {filepath}")
+            
+    except Exception as e:
+        print(f"\n[ERREUR] Problème lors de l'écriture CSV : {e}")
 
 def scan_menu():
     while True:
