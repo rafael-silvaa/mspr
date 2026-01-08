@@ -100,7 +100,7 @@ def scan_single_host(ip_str, ports_to_scan):
     # test ports
     for port in ports_to_scan:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(0.5)
+        sock.settimeout(0.1)
         res = sock.connect_ex((ip_str, port))
         sock.close()
         if res == 0:
@@ -117,7 +117,6 @@ def scan_subnet_and_export(profile, ports_to_scan):
     net_name = profile['network_name']
     
     print(f"\n[*] Démarrage de l'audit sur : {net_name} ({cidr})")
-    # print(f"[*] Ports testés : {ports_to_scan}")
     
     # prep fichier CSV
     if not os.path.exists(LOGS_DIR):
@@ -141,7 +140,7 @@ def scan_subnet_and_export(profile, ports_to_scan):
     results_to_write = []
 
     # scan parallele
-    with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=100) as executor:
         futures = {executor.submit(scan_single_host, str(ip), ports_to_scan): ip for ip in all_hosts}
 
         for future in concurrent.futures.as_completed(futures):
@@ -160,9 +159,6 @@ def scan_subnet_and_export(profile, ports_to_scan):
                 # eol
                 status_eol, date_eol = get_eol_status(os_detected)
 
-                # display
-                print(f"    [+] {ip_str:<15} ({hostname}) | {os_detected} | {status_eol} (Fin: {date_eol})")
-
                 # results
                 results_to_write.append({
                     'IP': ip_str,
@@ -172,6 +168,12 @@ def scan_subnet_and_export(profile, ports_to_scan):
                     'Date Fin Support': date_eol,
                     'Ports Ouverts': str(open_ports)
                 })
+
+    results_to_write.sort(key=lambda x: ipaddress.IPv4Address(c['IP']))
+
+    # display
+    for res in results_to_write:
+        print(f"    [+] {res['IP']:<15} ({res['Nom (DNS)']}) | {res['OS Détecté']} | {res['Statut Support (EOL)']} (Fin: {res['Date Fin Support']})")
 
     # csv
     try:
