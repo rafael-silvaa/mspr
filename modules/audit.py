@@ -45,10 +45,6 @@ def load_config():
         return None
 
 def fetch_eol_date_from_api(product, cycle):
-    if os_name not in API_MAPPING:
-        return "INCONNU", "N/A"
-
-    product, cycle = API_MAPPING[os_name]
     url = f"https://endoflife.date/api/v1/{product}.json"
 
     try:
@@ -57,7 +53,7 @@ def fetch_eol_date_from_api(product, cycle):
             data = response.json()
             # cherche cycle correspondant (ex: 20.04)
             for entry in data:
-                if entry['cycle'] == cycle:
+                if str(entry['cycle']) == str(cycle):
                     eol_date = entry['eol']
                     
                     if isinstance(eol_date, str) and len(eol_date) == 10:
