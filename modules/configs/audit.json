@@ -1,7 +1,21 @@
 {
-    "network_range": "192.168.1.",
-    "ip_start": 1,
-    "ip_end": 20,
-    "ports_to_scan": [21, 22, 23, 80, 443, 3389, 8080],
+    "scan_profiles": [
+        {
+            "network_name": "Réseau NAS",
+            "cidr": "192.168.1.0/24",
+            "description": "Zone contenant les NAS et imprimantes"
+        },
+        {
+            "network_name": "Réseau Serveurs (WMS/AD)",
+            "cidr": "192.168.10.0/24",
+            "description": "Zone critique serveurs et bases de données"
+        }
+    ],
+    "ports_to_scan": [21, 22, 23, 80, 443, 445, 3389, 8080],
+    "obsolete_protocols": {
+        "21": "FTP (Non chiffré -> Utiliser SFTP)",
+        "23": "TELNET (Obsolète/Clair -> Utiliser SSH)",
+        "80": "HTTP (Non chiffré -> Utiliser HTTPS)"
+    },
     "timeout": 0.5
 }
