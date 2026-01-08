@@ -45,7 +45,7 @@ def load_config():
         return None
 
 def fetch_eol_date_from_api(product, cycle):
-    if ios_name not in API_MAPPING:
+    if os_name not in API_MAPPING:
         return "INCONNU", "N/A"
 
     product, cycle = API_MAPPING[os_name]
