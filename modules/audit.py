@@ -169,7 +169,7 @@ def scan_subnet_and_export(profile, ports_to_scan):
                     'Ports Ouverts': str(open_ports)
                 })
 
-    results_to_write.sort(key=lambda x: ipaddress.IPv4Address(['IP']))
+    results_to_write.sort(key=lambda x: ipaddress.IPv4Address(x['IP']))
 
     # display
     for res in results_to_write:
