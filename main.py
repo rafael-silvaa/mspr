@@ -22,8 +22,7 @@ def main_menu():
             clear_screen()
             
             diagnostic.run_diagnostic()
-            wait_for_user()
-
+            
         elif choice == '2':
             backup.run_backup_menu() 
 
