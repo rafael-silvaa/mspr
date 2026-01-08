@@ -1,12 +1,37 @@
+import socket
+import json
+import os
+import csv
+import ipaddress
 import platform
 import subprocess
-import csv
 import requests
 from datetime import datetime
 from .utils import *
 
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_FILE = os.path.join(CURRENT_DIR, "configs", "audit.json")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_FILE = os.path.join(BASE_DIR, "configs", "audit.json")
+LOGS_DIR = os.path.join(os.path.dirname(BASE_DIR), "logs")
+
+# mapping API endoflife.date
+API_MAPPING = {
+    "Windows Server 2016": ("windows-server", "2016"),
+    "Windows Server 2019": ("windows-server", "2019"),
+    "Windows Server 2022": ("windows-server", "2022"),
+    "Ubuntu 20.04 LTS": ("ubuntu", "20.04"),
+    "CentOS 7": ("centos", "7"),
+    "Windows 10": ("windows", "10"),
+    "VMware ESXi 6.5": ("vmware-esxi", "6.5-6.7")
+}
+
+KNOWN_HOSTS = {
+    "192.168.10.10": "Windows Server 2016", # DC01
+    "192.168.10.11": "Windows Server 2016",
+    "192.168.10.21": "Ubuntu 20.04 LTS",
+    "192.168.10.22": "Ubuntu 20.04 LTS",
+    "192.168.10.40": "CentOS 7",
+    "192.168.10.50": "Windows Server 2019"
+}
 
 def load_config():
     if not os.path.exists(CONFIG_FILE):
@@ -19,27 +44,13 @@ def load_config():
         print(f"[ERREUR] Lecture JSON : {e}")
         return None
 
-# mapping API endoflife.date
-API_MAPPING = {
-    "Windows Server 2016": ("windows-server", "2016"),
-    "Windows Server 2019": ("windows-server", "2019"),
-    "Ubuntu 20.04 LTS": ("ubuntu", "20.04"),
-    "CentOS 7": ("centos", "7"),
-    "Windows 10": ("windows", "10"),
-    "ESXi 6.5": ("vmware-esxi", "6.5")
-}
-
-KNOWN_HOSTS = {
-    "192.168.10.10": "Windows Server 2016",
-    "192.168.10.11": "Windows Server 2016",
-    "192.168.10.21": "Ubuntu 20.04 LTS",
-    "192.168.10.22": "Ubuntu 20.04 LTS",
-    "192.168.10.40": "CentOS 7",
-    "192.168.10.50": "Windows Server 2019"
-}
-
 def fetch_eol_date_from_api(product, cycle):
-    url = f"https://endoflife.date/api/{product}.json"
+    if ios_name not in API_MAPPING:
+        return "INCONNU", "N/A"
+
+    product, cycle = API_MAPPING[os_name]
+    url = f"https://endoflife.date/api/v1/{product}.json"
+
     try:
         response = requests.get(url, timeout=2)
         if response.status_code == 200:
@@ -47,10 +58,18 @@ def fetch_eol_date_from_api(product, cycle):
             # cherche cycle correspondant (ex: 20.04)
             for entry in data:
                 if entry['cycle'] == cycle:
-                    return entry['eol'] # format YYYY-MM-DD
+                    eol_date = entry['eol']
+                    
+                    if isinstance(eol_date, str) and len(eol_date) == 10:
+                        dt_eol = datetime.strptime(eol_date, "%Y-%m-%d")
+                        if datetime.now() > dt_eol:
+                            return "Obsolète", eol_date
+                        else:
+                            return "Supporté", eol_date
+                    return "Supporté", str(eol_date)
     except Exception:
         return None
-    return None
+    return "Erreur API", "N/A"
 
 def get_eol_status(os_name):
     """verif obsolescence via API"""
