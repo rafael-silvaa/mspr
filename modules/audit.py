@@ -216,7 +216,7 @@ def scan_subnet_and_export(profile, ports_to_scan):
                         hostname = "N/A"
 
                     # OS
-                    os_detected = KNOWN_FINGERPRINTS.get(ip_str, "OS Inconnu")
+                    os_detected = KNOWN_HOSTS.get(ip_str, "OS Inconnu")
                     
                     # EOL API
                     status_eol, date_eol = get_eol_status(os_detected)
