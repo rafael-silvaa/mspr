@@ -6,6 +6,7 @@ import ipaddress
 import platform
 import subprocess
 import requests
+import concurrent.futures
 from datetime import datetime
 from .utils import *
 
@@ -92,6 +93,23 @@ def get_eol_status(os_name):
     except ValueError:
         return "Date invalide", eol_date_str
 
+def scan_single_host(ip_str, ports_to_scan):
+    open_ports = []
+    is_alive = False
+
+    # test ports
+    for port in ports_to_scan:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(0.5)
+        res = sock.connect_ex((ip_str, port))
+        sock.close()
+        if res == 0:
+            is_alive = True
+            open_ports.append(port)
+            # if port open = host alive
+
+    return ip_str, is_alive, open_ports
+
 def scan_subnet_and_export(profile, ports_to_scan):
     """scan network, OS & EOL + CSV"""
     
@@ -99,7 +117,7 @@ def scan_subnet_and_export(profile, ports_to_scan):
     net_name = profile['network_name']
     
     print(f"\n[*] Démarrage de l'audit sur : {net_name} ({cidr})")
-    print(f"[*] Ports testés : {ports_to_scan}")
+    # print(f"[*] Ports testés : {ports_to_scan}")
     
     # prep fichier CSV
     if not os.path.exists(LOGS_DIR):
@@ -116,63 +134,54 @@ def scan_subnet_and_export(profile, ports_to_scan):
         print("[!] CIDR invalide.")
         return
 
+    all_hosts = list(network.hosts())
+    total_hosts = len(all_hosts)
+    print(f"[*] Analyse de {total_hosts} adresses IPs...")
+
+    results_to_write = []
+
+    # scan parallele
+    with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
+        futures = {executor.submit(scan_single_host, str(ip), ports_to_scan): ip for ip in all_hosts}
+
+        for future in concurrent.futures.as_completed(futures):
+            ip_str, is_alive, open_ports = future.result()
+
+            if is_alive:
+                # reverse dns
+                try :
+                    hostname = socket.gethostbyaddr(ip_str)[0]
+                except:
+                    hostname = "N/A"
+                
+                # os
+                os_detected = KNOWN_HOSTS.get(ip_str, "OS Inconnu")
+
+                # eol
+                status_eol, date_eol = get_eol_status(os_detected)
+
+                # display
+                print(f"    [+] {ip_str:<15} ({hostname}) | {os_detected} | {status_eol} (Fin: {date_eol})")
+
+                # results
+                results_to_write.append({
+                    'IP': ip_str,
+                    'Nom (DNS)': hostname,
+                    'OS Détecté': os_detected,
+                    'Status Support (EOL)': status_eol,
+                    'Date Fin Support': date_eol,
+                    'Ports Ouverts': str(open_ports)
+                })
+
+    # csv
     try:
         with open(filepath, 'w', newline='', encoding='utf-8-sig') as csvfile:
             fieldnames = ['IP', 'Nom (DNS)', 'OS Détecté', 'Statut Support (EOL)', 'Date Fin Support', 'Ports Ouverts']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter=';')
             writer.writeheader()
+            writer.writerow(results_to_write)
 
-            found_count = 0
-            
-            # loop all IPs
-            total_hosts = network.num_addresses - 2
-            print(f"[*] Analyse de {total_hosts} adresses IP... (Patientez)\n")
-
-            for ip in network.hosts():
-                ip_str = str(ip)
-                
-                # loading visual effect
-                print(f"    > Scan {ip_str:<15}", end='\r')
-
-                # test de vie
-                open_ports = []
-                is_alive = False
-                
-                for port in ports_to_scan:
-                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    sock.settimeout(0.1)
-                    res = sock.connect_ex((ip_str, port))
-                    sock.close()
-                    if res == 0:
-                        is_alive = True
-                        open_ports.append(port)
-
-                if is_alive:
-                    # reverse DNS for hostname
-                    try:
-                        hostname = socket.gethostbyaddr(ip_str)[0]
-                    except:
-                        hostname = "N/A"
-
-                    # OS
-                    os_detected = KNOWN_HOSTS.get(ip_str, "OS Inconnu")
-                    
-                    # EOL API
-                    status_eol, date_eol = get_eol_status(os_detected)
-
-                    print(f"    [+] TROUVÉ : {ip_str} ({hostname}) | {os_detected} | {status_eol}")
-
-                    writer.writerow({
-                        'IP': ip_str,
-                        'Nom (DNS)': hostname,
-                        'OS Détecté': os_detected,
-                        'Statut Support (EOL)': status_eol,
-                        'Date Fin Support': date_eol,
-                        'Ports Ouverts': str(open_ports)
-                    })
-                    found_count += 1
-
-            print(f"\n\n[OK] Scan terminé. {found_count} machines trouvées.")
+            print(f"\n\n[OK] Scan terminé. {len(results_to_write)} machines trouvées.")
             print(f"[FICHIER] Rapport généré : {filepath}")
             
     except Exception as e:
