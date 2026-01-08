@@ -1,22 +1,22 @@
 {
     "scan_profiles": [
         {
-            "network_name": "Siège Social (Lille)",
+            "network_name": "Siege Social (Lille)",
             "cidr": "192.168.10.0/24",
             "description": "Services centraux (AD, DNS, VMs)"
         },
         {
-            "network_name": "Entrepôt WH1 (Lens)",
+            "network_name": "Entrepot WH1 (Lens)",
             "cidr": "192.168.20.0/24",
             "description": "Logistique Lens"
         },
         {
-            "network_name": "Entrepôt WH2 (Valenciennes)",
+            "network_name": "Entrepot WH2 (Valenciennes)",
             "cidr": "192.168.30.0/24",
             "description": "Logistique Valenciennes"
         },
         {
-            "network_name": "Entrepôt WH3 (Arras)",
+            "network_name": "Entrepot WH3 (Arras)",
             "cidr": "192.168.40.0/24",
             "description": "Logistique Arras"
         },
