@@ -240,46 +240,34 @@ def scan_subnet_and_export(profile, ports_to_scan):
         print(f"\n[ERREUR] Problème lors de l'écriture CSV : {e}")
 
 def scan_menu():
+    config = load_config()
+
     while True:
         clear_screen()
         print("\n--- MODULE AUDIT & OBSOLESCENCE ---")
-        print("1. Lancer le scan réseau")
+        
+        if not config:
+            print("[!] Erreur: Fichier configs/audit.json manquant ou invalide.")
+            wait_for_user()
+            return
+
+        profiles = config.get("scan_profiles", [])
+        for i, profile in enumerate(profiles):
+            print(f"{i + 1}. Auditer {profile['network_name']} ({profile['cidr']})")
+        
         print("q. Retour")
         
-        c = input("Choix : ")
-        if c == '1':
-            scan_network()
-            wait_for_user()
-        elif c == 'q':
+        choice = input("Votre choix : ")
+
+        if choice.isdigit():
+            index = int(choice) - 1
+            if 0 <= index < len(profiles):
+                target = profiles[index]
+                ports = config.get("ports_to_scan", [21, 22, 80, 445])
+
+                scan_subnet_and_export(target, ports)
+                wait_for_user()
+            else:
+                print("Choix invalide.")
+        elif choice == 'q':
             break
-    
-    # print(f"[*] Scan réseau : {subnet}")
-    # audit_results = []
-
-    # # scan rapide pour démo
-    # for i in range(1, 60): 
-    #     ip = f"{base_ip}.{i}"
-        
-    #     if ping_host(ip):
-    #         detected_os = KNOWN_HOSTS.get(ip, "Inconnu")
-            
-    #         # message d'attente car l'API peut prendre quelques ms
-    #         print(f"    [+] Machine trouvée : {ip} ({detected_os})... Vérification API...")
-            
-    #         status, date_eol = get_eol_status(detected_os)
-            
-    #         result_entry = {"ip": ip, "os": detected_os, "status": status, "eol_date": date_eol}
-    #         audit_results.append(result_entry)
-            
-    #         print(f"        -> Résultat : {status} (Fin de vie : {date_eol})")
-
-    # # generer CSV
-    # if audit_results:
-    #     filename = f"audit_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-    #     with open(filename, 'w', newline='', encoding='utf-8') as f:
-    #         writer = csv.DictWriter(f, fieldnames=["ip", "os", "status", "eol_date"], delimiter=';')
-    #         writer.writeheader()
-    #         writer.writerows(audit_results)
-    #     print(f"\n[SUCCÈS] Rapport CSV généré : {filename}")
-    # else:
-    #     print("\n[INFO] Aucune machine active détectée.")
