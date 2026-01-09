@@ -173,6 +173,10 @@ def scan_subnet_and_export(profile, ports_to_scan):
                 # os
                 os_detected = KNOWN_HOSTS.get(ip_str, "OS Inconnu")
 
+                # display firewall for pfsense
+                if hostname == "N/A" and "pfSense" in os_detected:
+                    hostname == "Firewall"
+
                 # eol
                 status_eol, date_eol = get_eol_status(os_detected)
 
