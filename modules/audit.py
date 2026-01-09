@@ -23,7 +23,7 @@ API_MAPPING = {
     "CentOS 7": ("centos", "7"),
     "Windows 10": ("windows", "10"),
     "VMware ESXi 6.5": ("vmware-esxi", "6.5-6.7"),
-    "FreeBSD 14.0": ("freebsd", "14.0")
+    "pfSense 2.7.2": ("freebsd", "label:stable/14")
 }
 
 KNOWN_HOSTS = {
