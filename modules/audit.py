@@ -55,14 +55,29 @@ def fetch_eol_date_from_api(product, version):
         if response.status_code == 200:
             data = response.json()
 
-            releases = data.get("result", {}).get("releases", [])
+            releases = []
+            if isinstance(data, list):
+                releases = data
+            elif isinstance(data, dict):
+                releases = data.get("result", {}).get("releases", [])
+
+            target_field = "name"
+            target_value = str(version)
+
+            if ":" in target_value:
+                parts = target_value.split(":", 1)
+                target_field = parts[0]
+                target_value = parts[1]
+
             # cherche cycle correspondant (ex: 20.04)
             for release in releases:
-                if str(release['name']) == str(version):
-                    eol_date = release.get('eolFrom')
+                actual_value = release.get(target_field)
+
+                if str(actual_value) == target_value:
+                    eol_date = release.get('eolFrom') or release.get('eol')
                     
-                    if isinstance(eol_date, str) and len(eol_date) == 10:
-                        return eol_date
+                    if isinstance(eol_date, str) and len(eol_date) >= 10:
+                        return eol_date[:10]
                     
                     return str(eol_date)
     except Exception:
