@@ -22,7 +22,8 @@ API_MAPPING = {
     "Ubuntu 20.04 LTS": ("ubuntu", "20.04"),
     "CentOS 7": ("centos", "7"),
     "Windows 10": ("windows", "10"),
-    "VMware ESXi 6.5": ("vmware-esxi", "6.5-6.7")
+    "VMware ESXi 6.5": ("vmware-esxi", "6.5-6.7"),
+    "FreeBSD 14.0": ("freebsd", "14.0")
 }
 
 KNOWN_HOSTS = {
@@ -31,7 +32,8 @@ KNOWN_HOSTS = {
     "192.168.10.21": "Ubuntu 20.04 LTS",
     "192.168.10.22": "Ubuntu 20.04 LTS",
     "192.168.10.40": "CentOS 7",
-    "192.168.10.50": "Windows Server 2019"
+    "192.168.10.50": "Windows Server 2019",
+    "192.168.10.254": "pfSense 2.7.2"
 }
 
 def load_config():
