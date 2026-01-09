@@ -2,3 +2,4 @@ psutil
 mysql-connector-python
 paramiko
 requests
+cryptography
