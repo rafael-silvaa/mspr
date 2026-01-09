@@ -157,7 +157,7 @@ def scan_subnet_and_export(profile, ports_to_scan):
     results_to_write = []
 
     # scan parallele
-    with concurrent.futures.ThreadPoolExecutor(max_workers=100) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=127) as executor:
         futures = {executor.submit(scan_single_host, str(ip), ports_to_scan): ip for ip in all_hosts}
 
         for future in concurrent.futures.as_completed(futures):
