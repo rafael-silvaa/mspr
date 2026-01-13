@@ -159,7 +159,7 @@ def perform_sql_dump(config):
         transfer_to_nas(final_path, final_filename, nas)
         return True
     
-    except Ecception as err:
+    except Exception as err:
         print(f"[ERREUR] Processus de sauvegarde : {err}")
         return False
     except subprocess.CalledProcessError as e:
