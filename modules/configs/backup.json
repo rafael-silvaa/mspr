@@ -12,6 +12,6 @@
         "remote_dir": "/home/nas/backups_wms"
     },
     "tools": {
-        "mysqldump_path": "C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysqldump.exe"
+        "mysqldump_path": "C:\\Program Files\\MySQL\\MySQL Server 8.4\\bin\\mysqldump.exe"
     }
 }
