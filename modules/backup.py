@@ -64,9 +64,9 @@ def encrypt_file(input_path, output_path, key):
         print(f"[ERREUR] Chiffrement échoué : {e}")
         return False
 
-def transfer_to_nas(local_path, filename):
+def transfer_to_nas(local_path, filename, nas_config):
     """envoie fichier -> NAS + supprime copie locale si succès"""
-    print(f"[*] Transfert de {filename} vers le NAS ({NAS_CONFIG['host']})...")
+    print(f"[*] Transfert de {filename} vers le NAS ({nas_config['host']})...")
     
     try:
         # creer client SSH
@@ -75,23 +75,23 @@ def transfer_to_nas(local_path, filename):
         
         # connect
         ssh.connect(
-            NAS_CONFIG["host"], 
-            username=NAS_CONFIG["user"], 
-            password=NAS_CONFIG["password"]
+            nas_config["host"], 
+            username=nas_config["user"], 
+            password=nas_config["password"]
         )
         
         sftp = ssh.open_sftp()
         
         # check dossier distant existant sinon creer
         try:
-            sftp.chdir(NAS_CONFIG["remote_dir"])
+            sftp.chdir(nas_config["remote_dir"])
         except IOError:
             print(f"[INFO] Le dossier distant n'existe pas, tentative de création...")
-            sftp.mkdir(NAS_CONFIG["remote_dir"])
-            sftp.chdir(NAS_CONFIG["remote_dir"])
+            sftp.mkdir(nas_config["remote_dir"])
+            sftp.chdir(nas_config["remote_dir"])
 
         # envoi fichier
-        remote_path = os.path.join(NAS_CONFIG["remote_dir"], filename)
+        remote_path = os.path.join(nas_config["remote_dir"], filename)
         
         sftp.put(local_path, remote_path)
         sftp.close()
