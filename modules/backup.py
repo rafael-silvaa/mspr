@@ -207,7 +207,7 @@ def export_table_csv(config):
             writer.writerow(headers)
             writer.writerows(rows)
 
-        encrypt_file(raw_csv_path, final_path, key)
+        encrypt_file(raw_csv_path, local_path, key)
             
         print(f"[SUCCÈS] Export CSV généré : {filename} ({len(rows)} lignes)")
         
