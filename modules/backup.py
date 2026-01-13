@@ -4,11 +4,15 @@ import mysql.connector
 import csv
 import paramiko
 import json
+import gzip
+import shutil
 from datetime import datetime
+from cryptography.fernet import Fernet
 from .utils import *
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(CURRENT_DIR, "configs", "backup.json")
+KEY_FILE = os.path.join(CURRENT_DIR, "configs", "secret.key")
 
 def load_config():
     if not os.path.exists(CONFIG_FILE):
@@ -21,12 +25,44 @@ def load_config():
         print(f"[ERREUR] Lecture JSON : {e}")
         return None
 
+def load_key():
+    if not os.path.exists(KEY_FILE):
+        print(f"[INFO] Aucune clé trouvée. Génération d'une nouvelle clé 'secret.key'...")
+        key = Fernet.generate_key()
+        with open(KEY_FILE, 'wb') as key_file:
+            key_file.write(key)
+        print(f"[IMP] Clé sauvegardée dans {KEY_FILE}.")
+
+    try:
+        with open(KEY_FILE, 'rb') as key_file:
+            return key_file.read()
+    except Exception as e:
+        print(f"[ERREUR] Lecture fichier clé : {e}")
+        return None
+
 def create_temp_dir():
     """crée un dossier avant """
     temp_dir = "backups_wms"
     if not os.path.exists(temp_dir):
         os.makedirs(temp_dir)
     return temp_dir
+
+def encrypt_file(input_path, output_path, key):
+    try:
+        fernet = Fernet(key)
+
+        with open(input_path, 'rb') as f:
+            original_data = f.read()
+
+        encrypted_data = fernet.encrypt(original_data)
+
+        with open(output_path, 'wb') as f:
+            f.write(encrypted_data)
+
+        return True
+    except Exception as e:
+        print(f"[ERREUR] Chiffrement échoué : {e}")
+        return False
 
 def transfer_to_nas(local_path, filename):
     """envoie fichier -> NAS + supprime copie locale si succès"""
@@ -79,14 +115,19 @@ def perform_sql_dump(config):
     db = config['database']
     tools = config['tools']
     nas = config['nas']
+
+    key = load_key()
     
-    print("\n[*] Démarrage de la sauvegarde SQL complète...")
+    print("\n[*] Démarrage de la sauvegarde SQL sécurisée...")
     
     # crée fichier horodaté
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     temp_dir = create_temp_dir()
-    filename = f"backup_{db}_{timestamp}.sql"
-    local_path = os.path.join(temp_dir, filename) 
+
+    raw_sql = os.path.join(temp_dir, f"temp_{timestamp}.sql")
+    compressed_sql = raw_sql + ".gz"
+    final_filename = f"backup_{db['db_name']}_{timestamp}.zsql.enc"
+    final_path = os.path.join(temp_dir, final_filename) 
 
     command = [
         tools['mysqldump_path'],
@@ -95,20 +136,32 @@ def perform_sql_dump(config):
         f"-p{db['password']}",
         db['db_name']
     ]
-
-    # remove arg -p si pas de mdp
-    if not db['password']:
-        command.pop(3)
+    if not db['password']: command.pop(3)
 
     try:
-        # ouvrir le fichier as write pour verser le résultat de la commande
-        with open(local_path, 'w') as outfile:
+        # dump
+        with open(raw_sql, 'w') as outfile:
             subprocess.run(command, stdout=outfile, stderr=subprocess.PIPE, check=True, text=True)
         
-        print(f"[SUCCÈS] Sauvegarde SQL générée: {local_path}")
-        transfer_to_nas(local_path, filename)
+        # comp gzip
+        with open(raw_sql, 'rb') as f_in:
+            with gzip.open(compressed_sql, 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
+
+        # chiffrement
+        encrypt_file(compressed_sql, final_path, key)
+
+        # clean up
+        if os.path.exists(raw_sql): os.remove(raw_sql)
+        if os.path.exists(compressed_sql): os.remove(compressed_sql)
+
+        print(f"[SUCCÈS] Sauvegarde SQL chiffrée générée: {final_path}")
+        transfer_to_nas(final_path, final_filename, nas)
         return True
     
+    except Ecception as err:
+        print(f"[ERREUR] Processus de sauvegarde : {err}")
+        return False
     except subprocess.CalledProcessError as e:
         print(f"[ERREUR] Échec de mysqldump. Code: {e.returncode}")
         print(f"Assurez-vous que 'mysqldump' est installé sur cette machine.")
@@ -122,7 +175,9 @@ def export_table_csv(config):
     db = config['database']
     nas = config['nas']
 
-    table_name = input("Quelle table voulez-vous exporter en CSV ? (users) : ")
+    key = load_key()
+
+    table_name = input("Table à exporter en CSV : ")
     print(f"\n[*] Export de la table '{table_name}' en CSV...")
     
     try:
@@ -133,9 +188,7 @@ def export_table_csv(config):
             database=db["db_name"]
         )
         cursor = conn.cursor()
-        
-        query = f"SELECT * FROM {table_name}"
-        cursor.execute(query)
+        cursor.execute(f"SELECT * FROM {table_name}")
         
         # récupération des données et des en-têtes
         rows = cursor.fetchall()
@@ -144,13 +197,17 @@ def export_table_csv(config):
         # écriture du CSV
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         temp_dir = create_temp_dir()
-        filename = f"export_{table_name}_{timestamp}.csv"
+
+        raw_csv_path = os.path.join(temp_dir, f"temp_{table_name}.csv")
+        filename = f"export_{table_name}_{timestamp}.csv.enc"
         local_path = os.path.join(temp_dir, filename)
         
-        with open(local_path, 'w', newline='', encoding='utf-8-sig') as f:
+        with open(raw_csv_path, 'w', newline='', encoding='utf-8-sig') as f:
             writer = csv.writer(f, delimiter=';')
             writer.writerow(headers)
             writer.writerows(rows)
+
+        encrypt_file(raw_csv_path, final_path, key)
             
         print(f"[SUCCÈS] Export CSV généré : {filename} ({len(rows)} lignes)")
         
